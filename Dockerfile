@@ -6,6 +6,8 @@ FROM debian:bookworm-slim
 ARG NVIM_VERSION=v0.11.4
 ARG NODE_MAJOR=22
 ARG TARGETARCH
+ARG KICKSTART_REPO=https://github.com/Foo42/kickstart.nvim.git
+ARG KICKSTART_REF=2f0018cac6386e16df34c5d76339476833ea3967
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       git \
@@ -60,8 +62,11 @@ ENV PATH="/home/dev/.local/bin:${PATH}"
 # how this config is actually used locally.
 ENV NVIM_APPNAME=kickstart
 
-# Neovim config.
-COPY --chown=dev:dev config/kickstart /home/dev/.config/kickstart
+# Neovim config: cloned directly from GitHub and pinned to a known-good
+# commit, rather than copied from a local checkout, so the image is
+# self-contained and reproducible on any machine.
+RUN git clone "${KICKSTART_REPO}" /home/dev/.config/kickstart \
+    && git -C /home/dev/.config/kickstart checkout "${KICKSTART_REF}"
 
 # tmux config + TPM (Tmux Plugin Manager) and its plugins.
 COPY --chown=dev:dev tmux.conf /home/dev/.tmux.conf
