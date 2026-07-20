@@ -1,13 +1,13 @@
 # Base developer image: tmux + neovim (kickstart.nvim-derived config) + Claude Code.
 # Derive language-specific images (python, rust, ...) from this one.
 
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 
-ARG NVIM_VERSION=v0.11.4
+ARG NVIM_VERSION=v0.12.4
 ARG NODE_MAJOR=22
 ARG TARGETARCH
 ARG KICKSTART_REPO=https://github.com/Foo42/kickstart.nvim.git
-ARG KICKSTART_REF=2f0018cac6386e16df34c5d76339476833ea3967
+ARG KICKSTART_REF=be250b784091bcc0df85aff74ed3e210e903ecc4
 ARG DOTFILES_REPO=https://github.com/Foo42/dot-conf-files.git
 ARG DOTFILES_REF=92103f88e6d69408c0159273635b430b74575fa9
 
@@ -34,10 +34,14 @@ RUN ln -s /usr/bin/fdfind /usr/local/bin/fd
 RUN ln -s /usr/bin/python3 /usr/local/bin/python
 
 # Node.js (LTS) + Claude Code CLI.
+# tree-sitter-cli is also installed here (via npm, since Node is already
+# present): nvim-treesitter's rewritten build system shells out to the
+# `tree-sitter` binary (`tree-sitter build`) to compile parsers, rather than
+# invoking a C compiler directly like the old build system did.
 RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_MAJOR}.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/* \
-    && npm install -g @anthropic-ai/claude-code
+    && npm install -g @anthropic-ai/claude-code tree-sitter-cli
 
 # Neovim: install latest stable release binary rather than the (older) apt package.
 RUN set -eu; \
