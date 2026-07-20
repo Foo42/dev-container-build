@@ -8,6 +8,8 @@ ARG NODE_MAJOR=22
 ARG TARGETARCH
 ARG KICKSTART_REPO=https://github.com/Foo42/kickstart.nvim.git
 ARG KICKSTART_REF=2f0018cac6386e16df34c5d76339476833ea3967
+ARG DOTFILES_REPO=https://github.com/Foo42/dot-conf-files.git
+ARG DOTFILES_REF=92103f88e6d69408c0159273635b430b74575fa9
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       git \
@@ -68,8 +70,14 @@ ENV NVIM_APPNAME=kickstart
 RUN git clone "${KICKSTART_REPO}" /home/dev/.config/kickstart \
     && git -C /home/dev/.config/kickstart checkout "${KICKSTART_REF}"
 
-# tmux config + TPM (Tmux Plugin Manager) and its plugins.
-COPY --chown=dev:dev tmux.conf /home/dev/.tmux.conf
+# tmux config: cloned from GitHub (same repo/commit-pinning approach as the
+# nvim config above) and pinned to a known-good commit.
+RUN git clone "${DOTFILES_REPO}" /tmp/dot-conf-files \
+    && git -C /tmp/dot-conf-files checkout "${DOTFILES_REF}" \
+    && cp /tmp/dot-conf-files/tmux/.tmux.conf /home/dev/.tmux.conf \
+    && rm -rf /tmp/dot-conf-files
+
+# TPM (Tmux Plugin Manager) and its plugins.
 RUN git clone --depth 1 https://github.com/tmux-plugins/tpm /home/dev/.tmux/plugins/tpm \
     && /home/dev/.tmux/plugins/tpm/bin/install_plugins
 
