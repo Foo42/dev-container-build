@@ -9,7 +9,7 @@ ARG TARGETARCH
 ARG KICKSTART_REPO=https://github.com/Foo42/kickstart.nvim.git
 ARG KICKSTART_REF=be250b784091bcc0df85aff74ed3e210e903ecc4
 ARG DOTFILES_REPO=https://github.com/Foo42/dot-conf-files.git
-ARG DOTFILES_REF=92103f88e6d69408c0159273635b430b74575fa9
+ARG DOTFILES_REF=da7adb93b2a67d365b519fda595be174cbdf1bbe
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       git \
@@ -27,6 +27,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       locales \
       sudo \
     && rm -rf /var/lib/apt/lists/*
+
+# Without an explicit UTF-8 locale, LANG/LC_ALL default to unset (POSIX).
+# tmux decodes the byte stream from its panes using the *server's* locale
+# (not the outer terminal's) to build its virtual screen grid, so under
+# POSIX it mis-handles multi-byte UTF-8 (e.g. Nerd Font glyphs from
+# nvim-web-devicons), even though nvim renders fine standalone. C.utf8 is
+# built into glibc on Debian, so no locale-gen is needed.
+ENV LANG=C.utf8
+ENV LC_ALL=C.utf8
 
 # fd-find installs as `fdfind` on Debian; kickstart/telescope expect `fd`.
 RUN ln -s /usr/bin/fdfind /usr/local/bin/fd
