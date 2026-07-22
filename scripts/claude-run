@@ -1,0 +1,6 @@
+#!/bin/sh
+# scripts/claude-run
+# Run this instead of `claude` directly — it starts Claude Code as the
+# restricted `claude` user rather than as `dev`. See
+# docs/superpowers/specs/2026-07-21-tool-sandboxing-design.md.
+exec sudo -u claude claude "$@"

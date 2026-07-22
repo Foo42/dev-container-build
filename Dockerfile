@@ -117,6 +117,9 @@ COPY guards/ /opt/guard-src/
 RUN chmod +x /usr/local/sbin/wrap-tool.sh \
     && wrap-tool.sh gh /usr/bin/gh /home/gh/.config/gh
 
+COPY scripts/claude-run /usr/local/bin/claude-run
+RUN chmod 0755 /usr/local/bin/claude-run
+
 USER dev
 WORKDIR /home/dev
 ENV HOME=/home/dev
