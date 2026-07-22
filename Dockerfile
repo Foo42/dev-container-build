@@ -69,6 +69,40 @@ RUN useradd --create-home --shell /bin/bash dev \
     && echo "dev ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/dev \
     && chmod 0440 /etc/sudoers.d/dev
 
+# Restricted user that runs Claude Code itself. No broad sudo — only
+# per-tool grants added by wrap-tool.sh (see later RUN steps), each scoped
+# to exactly one guard script.
+RUN useradd --create-home --shell /bin/bash claude
+
+# Shared group so dev and claude can both read/write the same project
+# files (bind-mounted from the host at `docker run` time). Deliberately
+# NOT used for /opt/guards, /opt/interceptors, or any tool's credential
+# directory — those stay dev/service-user-owned so claude's workspace
+# membership grants it no extra access there.
+RUN groupadd workspace \
+    && usermod -aG workspace dev \
+    && usermod -aG workspace claude
+
+# secure_path: ensures /opt/interceptors is checked before the real
+# binaries whenever sudo constructs a command's PATH (this is what makes
+# claude-run's `sudo -u claude claude` and any future sudo call land on the
+# interceptors first).
+# umask + umask_override: sudo applies its own default umask (0022) to
+# whatever it execs regardless of the caller's shell umask, unless told
+# otherwise here — 0002 is required for the workspace group-write scheme
+# in this plan to actually take effect for anything claude creates via
+# claude-run.
+# !requiretty (claude only): Claude Code's Bash tool calls may not have a
+# controlling tty; sudo must not refuse on that basis.
+RUN { \
+      echo 'Defaults secure_path="/opt/interceptors:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"'; \
+      echo 'Defaults umask=0002'; \
+      echo 'Defaults umask_override'; \
+      echo 'Defaults:claude !requiretty'; \
+    } > /etc/sudoers.d/claude-defaults \
+    && chmod 0440 /etc/sudoers.d/claude-defaults \
+    && visudo -cf /etc/sudoers.d/claude-defaults
+
 USER dev
 WORKDIR /home/dev
 ENV HOME=/home/dev
