@@ -103,6 +103,20 @@ RUN { \
     && chmod 0440 /etc/sudoers.d/claude-defaults \
     && visudo -cf /etc/sudoers.d/claude-defaults
 
+# GitHub CLI, gated behind the guard/interceptor scheme below — claude
+# never gets to run this binary directly with credentials attached.
+RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o /usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends gh \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY scripts/wrap-tool.sh /usr/local/sbin/wrap-tool.sh
+COPY guards/ /opt/guard-src/
+RUN chmod +x /usr/local/sbin/wrap-tool.sh \
+    && wrap-tool.sh gh /usr/bin/gh /home/gh/.config/gh
+
 USER dev
 WORKDIR /home/dev
 ENV HOME=/home/dev
