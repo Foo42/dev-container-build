@@ -26,6 +26,10 @@ docker run --rm \
     [ "$(stat -c %U:%G /home/gh/.config/gh)" = "gh:gh" ]
     [ "$(stat -c %a /home/gh/.config/gh)" = "700" ]
     [ "$(stat -c %U:%G /var/log/guards/gh.log)" = "gh:gh" ]
+    [ "$(stat -c %U:%G /opt/guards/gh.py)" = "dev:dev" ]
+    [ "$(stat -c %a /opt/guards/gh.py)" = "755" ]
+    [ "$(stat -c %a /var/log/guards/gh.log)" = "600" ]
+    [ "$(stat -c %a /etc/sudoers.d/gh-guard)" = "440" ]
 
     getent passwd gh >/dev/null
     grep -q "claude ALL=(gh) NOPASSWD" /etc/sudoers.d/gh-guard
