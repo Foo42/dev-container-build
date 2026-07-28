@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
 # scripts/run-container.sh
 set -euo pipefail
+
+# Captured before the `cd` below, so a bare `run-container.sh` (e.g. via a
+# host alias/function) defaults to whatever directory the caller was in
+# when they ran it — not this repo's own directory.
+INVOCATION_DIR="$PWD"
+
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 IMAGE="${IMAGE_NAME:-devcontainer-base}:${IMAGE_TAG:-latest}"
-WORKSPACE_HOST_PATH="${WORKSPACE_HOST_PATH:-$HOME/code}"
+WORKSPACE_HOST_PATH="${WORKSPACE_HOST_PATH:-$INVOCATION_DIR}"
 WORKSPACE_CONTAINER_PATH="${WORKSPACE_CONTAINER_PATH:-/home/dev/workspace}"
 CONTAINER_NAME="${CONTAINER_NAME:-devcontainer}"
 

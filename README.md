@@ -24,10 +24,13 @@ Build it:
 ./build.sh
 ```
 
-Start a sandboxed container (from the repo root):
+Start a sandboxed container from whatever directory you want to work in —
+`run-container.sh` defaults the workspace to your current directory at
+invocation time, not the repo's own directory:
 
 ```bash
-./scripts/run-container.sh
+cd ~/code/some-project
+/path/to/devcontainer/scripts/run-container.sh
 ```
 
 This does the following, in order:
@@ -36,7 +39,7 @@ This does the following, in order:
 2. For each wrapped tool, rotates its current host-side credential into a
    dedicated Docker volume (see "How to rotate keys").
 3. Starts the container with those credential volumes mounted read-only,
-   plus a workspace directory bind-mounted from the host.
+   plus your current directory bind-mounted as the workspace.
 4. Sets up the workspace directory for `dev`/`claude` shared read-write
    access.
 5. Attaches an interactive shell as `dev`.
@@ -50,10 +53,26 @@ user:
 claude-run
 ```
 
+You can edit the same project with a host-side editor at the same time —
+the workspace is a live bind mount, not a copy, so changes from either side
+show up immediately on the other. `run-container.sh`'s own sandboxing only
+restricts the `claude` user's access to wrapped tools inside the
+container; it has no effect on anything you run on the host.
+
+**Recommended: alias it on your host** so you can start the container from
+any project directory with one command. In `~/.zshrc`:
+
+```bash
+alias start-claude-container=/path/to/devcontainer/scripts/run-container.sh
+```
+
+Then `cd` into any project and run `start-claude-container` — the
+workspace will be whatever directory you were standing in.
+
 Relevant environment variables for `run-container.sh`:
-- `WORKSPACE_HOST_PATH` (default `$HOME/code`) — the host directory bind-mounted as your project workspace.
+- `WORKSPACE_HOST_PATH` (default: your current directory when you invoke it) — the host directory bind-mounted as your project workspace. Set this explicitly to override the current-directory default.
 - `WORKSPACE_CONTAINER_PATH` (default `/home/dev/workspace`) — where it lands inside the container.
-- `CONTAINER_NAME` (default `devcontainer`) — re-running `run-container.sh` with the same name replaces the existing container.
+- `CONTAINER_NAME` (default `devcontainer`) — re-running `run-container.sh` with the same name replaces the existing container. If you want multiple sandboxed containers for different projects running at once, give each a distinct `CONTAINER_NAME`.
 - `IMAGE_NAME` / `IMAGE_TAG` (default `devcontainer-base` / `latest`) — which image to run.
 
 ## How to control tool use
