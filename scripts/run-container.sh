@@ -35,9 +35,16 @@ docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
 docker run -d --name "$CONTAINER_NAME" "${MOUNT_ARGS[@]}" "$IMAGE" sleep infinity
 
 docker exec "$CONTAINER_NAME" sudo mkdir -p "$WORKSPACE_CONTAINER_PATH"
-docker exec "$CONTAINER_NAME" sudo chgrp -R workspace "$WORKSPACE_CONTAINER_PATH"
-docker exec "$CONTAINER_NAME" sudo chmod -R g+rwX "$WORKSPACE_CONTAINER_PATH"
-docker exec "$CONTAINER_NAME" sudo chmod -R g+s "$WORKSPACE_CONTAINER_PATH"
+
+# No chgrp/chmod-based workspace group setup here: on Docker Desktop for
+# Mac's bind-mount bridge, ownership/group metadata changes fail with
+# "Permission denied" against pre-existing files even as root inside the
+# container (confirmed directly against git's own read-only object files in
+# a real repo) — and that same bridge is separately permissive about
+# cross-user read/write regardless of ownership, so dev/claude workspace
+# sharing already works without this step on this platform. Not relied on;
+# not attempted. On a native Linux host, where bind-mount ownership
+# semantics are normal, this wasn't a problem to begin with.
 # dev's home directory defaults to 0700 (useradd --create-home), which blocks
 # traversal into any subdirectory — including the workspace mount above — for
 # every other user, claude included, regardless of the subdirectory's own
