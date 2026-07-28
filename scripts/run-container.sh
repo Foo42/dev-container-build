@@ -27,7 +27,15 @@ docker run -d --name "$CONTAINER_NAME" "${MOUNT_ARGS[@]}" "$IMAGE" sleep infinit
 
 docker exec "$CONTAINER_NAME" sudo mkdir -p "$WORKSPACE_CONTAINER_PATH"
 docker exec "$CONTAINER_NAME" sudo chgrp -R workspace "$WORKSPACE_CONTAINER_PATH"
+docker exec "$CONTAINER_NAME" sudo chmod -R g+rwX "$WORKSPACE_CONTAINER_PATH"
 docker exec "$CONTAINER_NAME" sudo chmod -R g+s "$WORKSPACE_CONTAINER_PATH"
+# dev's home directory defaults to 0700 (useradd --create-home), which blocks
+# traversal into any subdirectory — including the workspace mount above — for
+# every other user, claude included, regardless of the subdirectory's own
+# permissions. Grant search-only (not read/list) access on the workspace's
+# parent so claude can reach the shared workspace without gaining visibility
+# into the rest of dev's home directory.
+docker exec "$CONTAINER_NAME" sudo chmod o+x "$(dirname "$WORKSPACE_CONTAINER_PATH")"
 
 echo "container '$CONTAINER_NAME' is up. Attach with:"
 echo "  docker exec -it $CONTAINER_NAME sudo -u dev -i"
