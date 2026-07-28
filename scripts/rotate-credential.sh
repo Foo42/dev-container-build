@@ -19,11 +19,11 @@ case "$TOOL" in
 esac
 
 MANIFEST=$(docker run --rm --entrypoint cat "$IMAGE" /etc/wrapped-tools.json)
-read -r UID_ CREDENTIAL_PATH < <(python3 -c "
+UID_=$(python3 -c "
 import json, sys
 data = json.loads(sys.argv[1])
 info = data['$TOOL']
-print(info['uid'], info['credential_path'])
+print(info['uid'])
 " "$MANIFEST")
 
 VOLUME="${TOOL}-creds"
@@ -44,6 +44,8 @@ docker run --rm \
       mv -f \"\$entry\" \"/volume/\$name\"
     done
     rmdir /volume/.rotate-tmp
+    chown $UID_:$UID_ /volume
+    chmod 700 /volume
   "
 
 echo "rotated $TOOL credential into volume $VOLUME"
