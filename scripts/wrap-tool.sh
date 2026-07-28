@@ -44,6 +44,7 @@ if [ -f "$GUARD_SRC_DIR/${TOOL}.py" ]; then
   cp "$GUARD_SRC_DIR/${TOOL}.py" "$GUARDS_DIR/${TOOL}.py"
 else
   cat > "$GUARDS_DIR/${TOOL}.py" <<EOF
+#!/usr/bin/env python3
 import os
 import sys
 

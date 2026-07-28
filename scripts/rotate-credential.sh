@@ -39,10 +39,7 @@ docker run --rm \
     chown -R $UID_:$UID_ /volume/.rotate-tmp
     find /volume/.rotate-tmp -type f -exec chmod 600 {} +
     find /volume/.rotate-tmp -type d -exec chmod 700 {} +
-    for entry in /volume/.rotate-tmp/*; do
-      name=\$(basename \"\$entry\")
-      mv -f \"\$entry\" \"/volume/\$name\"
-    done
+    find /volume/.rotate-tmp -mindepth 1 -maxdepth 1 -exec mv -f {} /volume/ \;
     rmdir /volume/.rotate-tmp
     chown $UID_:$UID_ /volume
     chmod 700 /volume

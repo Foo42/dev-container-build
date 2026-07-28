@@ -13,7 +13,10 @@ MANIFEST=$(docker run --rm --entrypoint cat "$IMAGE" /etc/wrapped-tools.json)
 MOUNT_ARGS=(-v "$WORKSPACE_HOST_PATH:$WORKSPACE_CONTAINER_PATH")
 
 while IFS=$'\t' read -r tool credential_path; do
-  ./scripts/rotate-credential.sh "$tool"
+  if ! ./scripts/rotate-credential.sh "$tool"; then
+    echo "warning: failed to rotate credential for '$tool' — skipping its mount" >&2
+    continue
+  fi
   MOUNT_ARGS+=(-v "${tool}-creds:${credential_path}:ro")
 done < <(python3 -c "
 import json, sys
