@@ -75,6 +75,37 @@ Relevant environment variables for `run-container.sh`:
 - `CONTAINER_NAME` (default `devcontainer`) — re-running `run-container.sh` with the same name replaces the existing container. If you want multiple sandboxed containers for different projects running at once, give each a distinct `CONTAINER_NAME`.
 - `IMAGE_NAME` / `IMAGE_TAG` (default `devcontainer-base` / `latest`) — which image to run.
 
+### Resuming a Claude Code conversation across containers
+
+By default, a container's Claude Code conversation history lives only in
+that container's own filesystem (under `/home/claude/.claude/`) and is lost
+if the container is removed or the image is rebuilt. Pass `--session
+<name>` to opt into keeping just the conversation transcripts around:
+
+```bash
+./scripts/run-container.sh --session my-project
+```
+
+This mounts a dedicated Docker volume (`claude-session-<name>`) at
+`/home/claude/.claude/projects` — the specific subdirectory Claude Code
+uses for per-project conversation transcripts, keyed by a slug of the
+working directory. Nothing else under `~/.claude` (settings, plugins,
+auth/daemon state, telemetry) is included, so this is meant to be scoped
+resumability, not a full home-directory mount.
+
+To actually resume: start a new (or rebuilt) container with the **same**
+`--session <name>` and the **same** `WORKSPACE_HOST_PATH`/`WORKSPACE_CONTAINER_PATH`
+as before (the directory path is what Claude Code's history is keyed on),
+then use Claude Code's own `--continue`/`--resume` flags as normal. Reuse a
+name to continue a project's history; use a different name (or omit
+`--session` entirely) to start fresh.
+
+This means you can add a new wrapped tool — rebuild the image, tear down
+the old container, start a new one with the same `--session` name — without
+losing the conversation you were in the middle of, as an alternative to
+hot-wrapping the tool into the still-running container (see "How to add a
+new tool").
+
 ## How to control tool use
 
 Every wrapped tool (currently just `gh`) is only reachable through a
