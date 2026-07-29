@@ -15,7 +15,15 @@ INVOCATION_DIR="$PWD"
 # name (with the same workspace path, since Claude Code keys history by a
 # slug of cwd) to resume a prior conversation in a new or rebuilt
 # container; use a different name per project to keep histories separate.
+# --ref <path>[:<name>] (repeatable): mounts an additional host directory
+# read-only at /reference/<name> inside the container, for material you
+# want dev/claude to be able to read but never accidentally edit. <name>
+# defaults to the path's basename; give distinct paths distinct names if
+# their basenames collide. Relative paths are resolved against the
+# directory the script was invoked from (like WORKSPACE_HOST_PATH's
+# current-directory default), not this repo's own directory.
 SESSION_NAME=""
+REF_ARGS=()
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --session)
@@ -24,6 +32,14 @@ while [ "$#" -gt 0 ]; do
       ;;
     --session=*)
       SESSION_NAME="${1#--session=}"
+      shift
+      ;;
+    --ref)
+      REF_ARGS+=("${2:?--ref requires a value}")
+      shift 2
+      ;;
+    --ref=*)
+      REF_ARGS+=("${1#--ref=}")
       shift
       ;;
     *)
@@ -50,6 +66,42 @@ if [ -n "$SESSION_NAME" ]; then
   docker volume create "$CLAUDE_SESSION_VOLUME" >/dev/null
   MOUNT_ARGS+=(-v "${CLAUDE_SESSION_VOLUME}:${CLAUDE_SESSION_PATH}")
 fi
+
+REF_NAMES=()
+for ref_arg in "${REF_ARGS[@]+"${REF_ARGS[@]}"}"; do
+  if [[ "$ref_arg" == *:* ]]; then
+    REF_HOST_PATH="${ref_arg%:*}"
+    REF_NAME="${ref_arg##*:}"
+  else
+    REF_HOST_PATH="$ref_arg"
+    REF_NAME="$(basename "$ref_arg")"
+  fi
+
+  case "$REF_HOST_PATH" in
+    /*) : ;;
+    *) REF_HOST_PATH="$INVOCATION_DIR/$REF_HOST_PATH" ;;
+  esac
+
+  if [ ! -e "$REF_HOST_PATH" ]; then
+    echo "error: --ref path does not exist: $REF_HOST_PATH" >&2
+    exit 1
+  fi
+  case "$REF_NAME" in
+    ""|*/*|.|..)
+      echo "error: --ref name '$REF_NAME' is invalid (empty, contains '/', or is '.'/'..')" >&2
+      exit 1
+      ;;
+  esac
+  for existing in "${REF_NAMES[@]+"${REF_NAMES[@]}"}"; do
+    if [ "$existing" = "$REF_NAME" ]; then
+      echo "error: duplicate --ref name '$REF_NAME' — use --ref <path>:<name> to disambiguate" >&2
+      exit 1
+    fi
+  done
+  REF_NAMES+=("$REF_NAME")
+
+  MOUNT_ARGS+=(-v "${REF_HOST_PATH}:/reference/${REF_NAME}:ro")
+done
 
 while IFS=$'\t' read -r tool credential_path; do
   if ! ./scripts/rotate-credential.sh "$tool"; then
@@ -79,6 +131,17 @@ docker exec "$CONTAINER_NAME" sudo mkdir -p "$WORKSPACE_CONTAINER_PATH"
 # Docker Desktop for Mac limitation noted below.
 docker exec "$CONTAINER_NAME" sudo mkdir -p "$CLAUDE_SESSION_PATH"
 docker exec "$CONTAINER_NAME" sudo chown claude:claude /home/claude/.claude "$CLAUDE_SESSION_PATH"
+
+# /reference/<name> mounts (from --ref) live outside both dev's and
+# claude's home directories specifically to sidestep the 0700-home
+# traversal issue handled below for the workspace — a single root-owned,
+# world-traversable/readable directory at the container's top level, not a
+# bind mount itself, so this chmod is reliable regardless of the Docker
+# Desktop bind-mount limitations noted below. Each --ref subdirectory
+# keeps its own :ro mount flag, so nothing under /reference is writable by
+# dev or claude regardless of this directory's own permissions.
+docker exec "$CONTAINER_NAME" sudo mkdir -p /reference
+docker exec "$CONTAINER_NAME" sudo chmod o+rx /reference
 
 # No chgrp/chmod-based workspace group setup here: on Docker Desktop for
 # Mac's bind-mount bridge, ownership/group metadata changes fail with

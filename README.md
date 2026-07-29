@@ -100,6 +100,25 @@ then use Claude Code's own `--continue`/`--resume` flags as normal. Reuse a
 name to continue a project's history; use a different name (or omit
 `--session` entirely) to start fresh.
 
+### Mounting read-only reference material
+
+Pass `--ref <host-path>` (repeatable) to mount additional host directories
+into the container as read-only reference material — documentation,
+another project you want to consult but not edit, etc. — visible to both
+`dev` and `claude` but writable by neither:
+
+```bash
+./scripts/run-container.sh --ref ~/docs/architecture --ref ~/notes/some-project
+```
+
+Each ends up at `/reference/<name>` inside the container, where `<name>`
+defaults to the path's basename. If two `--ref` paths share a basename,
+disambiguate with an explicit name: `--ref ~/a/docs:docs-a --ref
+~/b/docs:docs-b`. The mount is read-only at the kernel level (`:ro`), so
+this holds regardless of the file-permission quirks noted elsewhere in this
+README for the (read-write) workspace bind mount — nobody inside the
+container, `dev` included, can write to a `--ref` mount no matter what.
+
 This means you can add a new wrapped tool — rebuild the image, tear down
 the old container, start a new one with the same `--session` name — without
 losing the conversation you were in the middle of, as an alternative to
