@@ -141,10 +141,14 @@ new tool").
 
 ## How to control tool use
 
-Every wrapped tool (currently just `gh`) is only reachable through a
+Every wrapped tool (currently `gh` and `aws`) is only reachable through a
 **guard**: a small Python script at `guards/<tool>.py` that decides, per
 invocation, whether to allow it. This is the file you edit to open or close
-what Claude Code is allowed to do.
+what Claude Code is allowed to do. `guards/aws.py` starts deliberately
+minimal — only `sts get-caller-identity` (the AWS equivalent of "whoami")
+is allowed — given how much more blast radius AWS credentials can have
+than `gh`'s; widen it deliberately, service by service, the same way you
+would `gh.py`.
 
 `guards/gh.py` uses a `match` statement over the command's arguments:
 

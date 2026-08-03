@@ -12,6 +12,7 @@ IMAGE="${IMAGE_NAME:-devcontainer-base}:${IMAGE_TAG:-latest}"
 
 case "$TOOL" in
   gh) HOST_SOURCE="${GH_CREDENTIAL_SOURCE:-$HOME/.config/gh}" ;;
+  aws) HOST_SOURCE="${AWS_CREDENTIAL_SOURCE:-$HOME/.aws}" ;;
   *)
     echo "no host credential source configured for tool '$TOOL'" >&2
     exit 1

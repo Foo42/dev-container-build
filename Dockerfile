@@ -112,10 +112,26 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o 
     && apt-get install -y --no-install-recommends gh \
     && rm -rf /var/lib/apt/lists/*
 
+# AWS CLI v2, installed via the official architecture-aware zip installer
+# (Debian has no current, well-maintained apt package for it) — gated
+# behind the same guard/interceptor scheme as gh, below.
+RUN set -eu; \
+    case "${TARGETARCH}" in \
+      amd64) AWS_ARCH=x86_64 ;; \
+      arm64) AWS_ARCH=aarch64 ;; \
+      *) echo "unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL -o /tmp/awscliv2.zip \
+      "https://awscli.amazonaws.com/awscli-exe-linux-${AWS_ARCH}.zip" \
+    && unzip -q /tmp/awscliv2.zip -d /tmp \
+    && /tmp/aws/install \
+    && rm -rf /tmp/awscliv2.zip /tmp/aws
+
 COPY scripts/wrap-tool.sh /usr/local/sbin/wrap-tool.sh
 COPY guards/ /opt/guard-src/
 RUN chmod +x /usr/local/sbin/wrap-tool.sh \
-    && wrap-tool.sh gh /usr/bin/gh /home/gh/.config/gh
+    && wrap-tool.sh gh /usr/bin/gh /home/gh/.config/gh \
+    && wrap-tool.sh aws /usr/local/bin/aws /home/aws/.aws
 
 COPY scripts/claude-run /usr/local/bin/claude-run
 RUN chmod 0755 /usr/local/bin/claude-run
