@@ -182,6 +182,22 @@ the exact argv, and whether it was allowed. As `dev` (who has full sudo):
 sudo cat /var/log/guards/gh.log
 ```
 
+To watch decisions live across every wrapped tool while you work — useful
+for seeing what Claude actually tried and deciding what to widen — run
+`tail-tool-logs` (installed on `$PATH`, `dev`-only since it needs sudo to
+read the logs):
+
+```bash
+tail-tool-logs
+```
+
+```
+✓ gh pr list
+✗ gh repo delete some/repo
+✓ aws sts get-caller-identity
+✗ aws s3 ls
+```
+
 ## How to rotate keys
 
 Credentials for a wrapped tool never live inside the image and are never

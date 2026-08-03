@@ -7,13 +7,14 @@ ARG NVIM_VERSION=v0.12.4
 ARG NODE_MAJOR=22
 ARG TARGETARCH
 ARG KICKSTART_REPO=https://github.com/Foo42/kickstart.nvim.git
-ARG KICKSTART_REF=be250b784091bcc0df85aff74ed3e210e903ecc4
+ARG KICKSTART_REF=e9e4dedeb50adfa576051e20f085d0ff6cec096d
 ARG DOTFILES_REPO=https://github.com/Foo42/dot-conf-files.git
 ARG DOTFILES_REF=da7adb93b2a67d365b519fda595be174cbdf1bbe
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       git \
       curl \
+      jq \
       unzip \
       ca-certificates \
       build-essential \
@@ -135,6 +136,9 @@ RUN chmod +x /usr/local/sbin/wrap-tool.sh \
 
 COPY scripts/claude-run /usr/local/bin/claude-run
 RUN chmod 0755 /usr/local/bin/claude-run
+
+COPY scripts/tail-tool-logs /usr/local/bin/tail-tool-logs
+RUN chmod 0755 /usr/local/bin/tail-tool-logs
 
 USER dev
 WORKDIR /home/dev

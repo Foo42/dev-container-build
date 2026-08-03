@@ -1,0 +1,8 @@
+#!/bin/sh
+# scripts/tail-tool-logs
+# Live-tails every wrapped tool's guard decision log (/var/log/guards/*.log),
+# showing just allow/deny + the command, to help decide what to widen in
+# guards/<tool>.py. Requires sudo — guard logs are owned by each tool's own
+# service user, mode 0600 — so this only works for dev, not claude.
+exec sudo tail -q -f /var/log/guards/*.log | jq --unbuffered -r \
+  'if .allowed then "✓" else "✗" end + " " + .tool + " " + (.argv | join(" "))'
