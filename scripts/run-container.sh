@@ -8,13 +8,16 @@ set -euo pipefail
 INVOCATION_DIR="$PWD"
 
 # --session <name>: opts into rebuild-safe resumability for Claude Code's
-# own conversation history. Maps to a named Docker volume
-# (claude-session-<name>) mounted at /home/claude/.claude/projects only —
-# not the rest of ~/.claude (settings, plugins, auth/daemon state,
-# telemetry stay container-local and ephemeral). Reuse the same --session
+# own conversation history specifically. Maps to a named Docker volume
+# (claude-session-<name>) mounted at /home/claude/.claude/projects, nested
+# inside (and shadowing just that subdirectory of) the always-on
+# claude-config volume set up below — credentials/settings persist
+# regardless of this flag; this is only about whether *conversation
+# history* also persists, and under which name. Reuse the same --session
 # name (with the same workspace path, since Claude Code keys history by a
 # slug of cwd) to resume a prior conversation in a new or rebuilt
-# container; use a different name per project to keep histories separate.
+# container; use a different name per project to keep histories separate;
+# omit it to start every container with fresh conversation history.
 # --ref <path>[:<name>] (repeatable): mounts an additional host directory
 # read-only at /reference/<name> inside the container, for material you
 # want dev/claude to be able to read but never accidentally edit. <name>
@@ -60,6 +63,16 @@ CLAUDE_SESSION_PATH="/home/claude/.claude/projects"
 MANIFEST=$(docker run --rm --entrypoint cat "$IMAGE" /etc/wrapped-tools.json)
 
 MOUNT_ARGS=(-v "$WORKSPACE_HOST_PATH:$WORKSPACE_CONTAINER_PATH")
+
+# Always-on, not opt-in: persists the whole /home/claude/.claude — Claude
+# Code's own login credentials, settings, plugins, etc. — in a single
+# global volume (one Anthropic login, shared across all projects/sessions;
+# override CLAUDE_CONFIG_VOLUME if you deliberately want a second, separate
+# identity). There's no legitimate "start fresh" use case for re-logging-in
+# on purpose, unlike conversation history below, which stays opt-in.
+CLAUDE_CONFIG_VOLUME="${CLAUDE_CONFIG_VOLUME:-claude-config}"
+docker volume create "$CLAUDE_CONFIG_VOLUME" >/dev/null
+MOUNT_ARGS+=(-v "${CLAUDE_CONFIG_VOLUME}:/home/claude/.claude")
 
 if [ -n "$SESSION_NAME" ]; then
   CLAUDE_SESSION_VOLUME="claude-session-${SESSION_NAME}"
@@ -121,14 +134,14 @@ docker run -d --name "$CONTAINER_NAME" "${MOUNT_ARGS[@]}" "$IMAGE" sleep infinit
 
 docker exec "$CONTAINER_NAME" sudo mkdir -p "$WORKSPACE_CONTAINER_PATH"
 
-# Ensure claude's session-history directory exists and is owned by claude,
-# whether or not --session was passed — harmless either way, and means a
-# freshly attached (unmounted) container still gets a clean, writable
-# ~/.claude/projects rather than Claude Code having to create it from
-# scratch under a stricter default. Unlike the workspace bind mount above,
-# this is either the container's own filesystem or a plain named volume
-# (not a host bind mount), so chown here is reliable — it doesn't hit the
-# Docker Desktop for Mac limitation noted below.
+# Ensure claude's ~/.claude (always volume-backed now) and its nested
+# session-history directory (volume-backed only if --session was passed)
+# both exist and are owned by claude — harmless either way, and means a
+# freshly attached container always gets a clean, writable ~/.claude rather
+# than Claude Code having to create it from scratch under a stricter
+# default. Unlike the workspace bind mount below, these are named volumes
+# (or the container's own filesystem), so chown here is reliable — it
+# doesn't hit the Docker Desktop for Mac limitation noted further down.
 docker exec "$CONTAINER_NAME" sudo mkdir -p "$CLAUDE_SESSION_PATH"
 docker exec "$CONTAINER_NAME" sudo chown claude:claude /home/claude/.claude "$CLAUDE_SESSION_PATH"
 

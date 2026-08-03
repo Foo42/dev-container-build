@@ -75,12 +75,23 @@ Relevant environment variables for `run-container.sh`:
 - `CONTAINER_NAME` (default `devcontainer`) — re-running `run-container.sh` with the same name replaces the existing container. If you want multiple sandboxed containers for different projects running at once, give each a distinct `CONTAINER_NAME`.
 - `IMAGE_NAME` / `IMAGE_TAG` (default `devcontainer-base` / `latest`) — which image to run.
 
+### Persistent Claude Code login and settings
+
+`/home/claude/.claude` (Claude Code's login credentials, `settings.json`,
+plugins, etc.) is always backed by a single named Docker volume
+(`claude-config`), created automatically the first time you run
+`run-container.sh`. This means you only log in to Claude Code once, ever —
+not once per container. It's a single global volume shared across every
+project (one Anthropic login regardless of which project you're working
+in); set `CLAUDE_CONFIG_VOLUME` to a different name if you deliberately
+want a second, separate login identity.
+
 ### Resuming a Claude Code conversation across containers
 
-By default, a container's Claude Code conversation history lives only in
-that container's own filesystem (under `/home/claude/.claude/`) and is lost
-if the container is removed or the image is rebuilt. Pass `--session
-<name>` to opt into keeping just the conversation transcripts around:
+Conversation history specifically (not credentials/settings — those always
+persist, see above) is opt-in and scoped per project. Pass `--session
+<name>` to keep a project's conversation transcripts around across
+container restarts/rebuilds:
 
 ```bash
 ./scripts/run-container.sh --session my-project
@@ -89,16 +100,19 @@ if the container is removed or the image is rebuilt. Pass `--session
 This mounts a dedicated Docker volume (`claude-session-<name>`) at
 `/home/claude/.claude/projects` — the specific subdirectory Claude Code
 uses for per-project conversation transcripts, keyed by a slug of the
-working directory. Nothing else under `~/.claude` (settings, plugins,
-auth/daemon state, telemetry) is included, so this is meant to be scoped
-resumability, not a full home-directory mount.
+working directory — nested inside (and taking precedence over) the
+always-on `claude-config` volume's own copy of that subdirectory.
 
 To actually resume: start a new (or rebuilt) container with the **same**
 `--session <name>` and the **same** `WORKSPACE_HOST_PATH`/`WORKSPACE_CONTAINER_PATH`
 as before (the directory path is what Claude Code's history is keyed on),
-then use Claude Code's own `--continue`/`--resume` flags as normal. Reuse a
-name to continue a project's history; use a different name (or omit
-`--session` entirely) to start fresh.
+then use Claude Code's own `--continue`/`--resume` flags as normal (or just
+run `claude-run` with no flags — Claude Code auto-resumes the most recent
+session for the current directory by default). Reuse a name to continue a
+project's history; use a different name (or omit `--session` entirely) to
+start fresh — conversations started without `--session` still land
+somewhere inside the persistent `claude-config` volume, just without a
+dedicated name of their own, so they're not lost, only unlabeled.
 
 ### Mounting read-only reference material
 
