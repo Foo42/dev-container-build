@@ -174,5 +174,12 @@ docker exec "$CONTAINER_NAME" sudo chmod o+rx /reference
 docker exec "$CONTAINER_NAME" sudo chmod o+x "$(dirname "$WORKSPACE_CONTAINER_PATH")"
 
 echo "container '$CONTAINER_NAME' is up. Attach with:"
-echo "  docker exec -it $CONTAINER_NAME sudo -u dev -i"
-docker exec -it "$CONTAINER_NAME" sudo -u dev -i
+echo "  docker exec -it $CONTAINER_NAME sudo -u dev -i bash -c 'cd \"$WORKSPACE_CONTAINER_PATH\" && exec bash -l'"
+# `docker exec -w` doesn't survive this: sudo -i deliberately resets cwd to
+# the target user's HOME as part of simulating a fresh login, overriding
+# whatever working directory docker exec set for the outer sudo process.
+# cd explicitly, then `exec bash -l` (not just running commands inline) so
+# the final shell is still a proper login+interactive shell — same rc-file
+# sourcing as a bare `sudo -u dev -i` — just already sitting in the
+# workspace instead of dev's home.
+docker exec -it "$CONTAINER_NAME" sudo -u dev -i bash -c "cd \"$WORKSPACE_CONTAINER_PATH\" && exec bash -l"
