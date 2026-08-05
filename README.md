@@ -222,6 +222,20 @@ you rotate a token on the host (e.g. `gh auth login` again) while a
 container is already up and want the new credential to take effect
 immediately.
 
+**`gh` is a special case, worth knowing about if you add a similar tool
+later.** On macOS, `gh` stores its actual OAuth token in the Keychain —
+`hosts.yml`/`config.yml` hold only non-secret metadata (protocol,
+username). Copying those files alone gives you a container that looks
+fully configured but has no working credential. `rotate-credential.sh`
+resolves the real token via `gh auth token` (gh's own resolver, which
+works regardless of storage backend — much safer than trying to
+reverse-engineer Keychain's internal format) and writes it into the volume
+as a plain file; `guards/gh.py` reads that file and sets `GH_TOKEN` for
+just the one `execv` call to the real binary — `gh`'s own documented,
+non-interactive auth mechanism. If you wrap a tool that similarly moves its
+credential into an OS keychain rather than a plain config file, check for
+the same problem rather than assuming a directory copy is enough.
+
 ## How to add a new tool
 
 1. Write `guards/<tool>.py` in this repo, following the shape of
