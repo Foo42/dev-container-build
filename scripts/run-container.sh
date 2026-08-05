@@ -64,15 +64,34 @@ MANIFEST=$(docker run --rm --entrypoint cat "$IMAGE" /etc/wrapped-tools.json)
 
 MOUNT_ARGS=(-v "$WORKSPACE_HOST_PATH:$WORKSPACE_CONTAINER_PATH")
 
-# Always-on, not opt-in: persists the whole /home/claude/.claude — Claude
+# Always-on, not opt-in: persists claude's whole home directory — Claude
 # Code's own login credentials, settings, plugins, etc. — in a single
 # global volume (one Anthropic login, shared across all projects/sessions;
 # override CLAUDE_CONFIG_VOLUME if you deliberately want a second, separate
 # identity). There's no legitimate "start fresh" use case for re-logging-in
 # on purpose, unlike conversation history below, which stays opt-in.
+#
+# Mounted at /home/claude (the whole home directory), not just
+# /home/claude/.claude — Claude Code also keeps a critical SIBLING file,
+# /home/claude/.claude.json (note: a file, not something inside the
+# .claude/ directory), holding hasCompletedOnboarding and the full
+# oauthAccount data. Missing that file meant the onboarding/login flow
+# re-ran on every fresh container despite .claude/ itself persisting
+# correctly — confirmed directly (its hasCompletedOnboarding key and
+# populated oauthAccount only appeared after completing the flow, and it
+# wasn't covered by the narrower /home/claude/.claude mount). A symlink
+# for just that one file was considered and rejected: it's actively
+# rewritten during normal use, and gh's credential rotation already showed
+# an atomic write-then-rename pattern replaces a symlink at its target
+# path with a plain file, silently breaking persistence after the first
+# write — mounting the whole home directory sidesteps that risk entirely.
+# claude-run's `sudo -u claude claude` execs the binary directly (no shell
+# in between), so .bashrc/.profile are never sourced by that path anyway —
+# an initially-empty volume shadowing those default dotfiles costs nothing
+# in practice.
 CLAUDE_CONFIG_VOLUME="${CLAUDE_CONFIG_VOLUME:-claude-config}"
 docker volume create "$CLAUDE_CONFIG_VOLUME" >/dev/null
-MOUNT_ARGS+=(-v "${CLAUDE_CONFIG_VOLUME}:/home/claude/.claude")
+MOUNT_ARGS+=(-v "${CLAUDE_CONFIG_VOLUME}:/home/claude")
 
 if [ -n "$SESSION_NAME" ]; then
   CLAUDE_SESSION_VOLUME="claude-session-${SESSION_NAME}"
@@ -134,16 +153,16 @@ docker run -d --name "$CONTAINER_NAME" "${MOUNT_ARGS[@]}" "$IMAGE" sleep infinit
 
 docker exec "$CONTAINER_NAME" sudo mkdir -p "$WORKSPACE_CONTAINER_PATH"
 
-# Ensure claude's ~/.claude (always volume-backed now) and its nested
-# session-history directory (volume-backed only if --session was passed)
-# both exist and are owned by claude — harmless either way, and means a
-# freshly attached container always gets a clean, writable ~/.claude rather
-# than Claude Code having to create it from scratch under a stricter
-# default. Unlike the workspace bind mount below, these are named volumes
-# (or the container's own filesystem), so chown here is reliable — it
-# doesn't hit the Docker Desktop for Mac limitation noted further down.
+# Ensure claude's whole home (always volume-backed now, root:root by
+# default the same way a freshly created named volume's root always is —
+# see the same fix already applied to each tool's credential volume) and
+# its nested session-history directory (volume-backed only if --session
+# was passed) both exist and are owned by claude. Unlike the workspace
+# bind mount below, these are named volumes (or the container's own
+# filesystem), so chown here is reliable — it doesn't hit the Docker
+# Desktop for Mac limitation noted further down.
 docker exec "$CONTAINER_NAME" sudo mkdir -p "$CLAUDE_SESSION_PATH"
-docker exec "$CONTAINER_NAME" sudo chown claude:claude /home/claude/.claude "$CLAUDE_SESSION_PATH"
+docker exec "$CONTAINER_NAME" sudo chown claude:claude /home/claude /home/claude/.claude "$CLAUDE_SESSION_PATH"
 
 # /reference/<name> mounts (from --ref) live outside both dev's and
 # claude's home directories specifically to sidestep the 0700-home

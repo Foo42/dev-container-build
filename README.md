@@ -77,14 +77,24 @@ Relevant environment variables for `run-container.sh`:
 
 ### Persistent Claude Code login and settings
 
-`/home/claude/.claude` (Claude Code's login credentials, `settings.json`,
-plugins, etc.) is always backed by a single named Docker volume
-(`claude-config`), created automatically the first time you run
-`run-container.sh`. This means you only log in to Claude Code once, ever —
-not once per container. It's a single global volume shared across every
-project (one Anthropic login regardless of which project you're working
-in); set `CLAUDE_CONFIG_VOLUME` to a different name if you deliberately
-want a second, separate login identity.
+Claude Code's own home directory, `/home/claude` (login credentials,
+`settings.json`, plugins, etc. — plus `.claude.json`, a critical file
+holding onboarding/login-completion state that sits *next to* the
+`.claude/` directory, not inside it) is always backed by a single named
+Docker volume (`claude-config`), created automatically the first time you
+run `run-container.sh`. This means you only log in to Claude Code once,
+ever, and never see the theme/onboarding prompts again — not once per
+container. It's a single global volume shared across every project (one
+Anthropic login regardless of which project you're working in); set
+`CLAUDE_CONFIG_VOLUME` to a different name if you deliberately want a
+second, separate login identity.
+
+(The whole home directory is mounted, not just `.claude/`, specifically
+because of `.claude.json` — an earlier version of this only covered
+`.claude/` and silently missed that file, so the onboarding/login flow
+kept re-running on every fresh container despite credentials/settings
+correctly persisting. Confirmed and fixed by comparing `.claude.json`'s
+contents before and after completing onboarding.)
 
 ### Resuming a Claude Code conversation across containers
 
