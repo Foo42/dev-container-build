@@ -10,6 +10,10 @@ def decide(argv: list[str]) -> bool:
     match argv:
         case ["sts", "get-caller-identity", *_]:
             return True
+        case ["iam", "get-role", *_]:
+            return True
+        case ["iam", action, *_] if action.startswith("list-"):
+            return True
         case _:
             return False  # deny by default — widen deliberately, case by case
 
