@@ -57,7 +57,19 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 IMAGE="${IMAGE_NAME:-devcontainer-base}:${IMAGE_TAG:-latest}"
 WORKSPACE_HOST_PATH="${WORKSPACE_HOST_PATH:-$INVOCATION_DIR}"
 WORKSPACE_CONTAINER_PATH="${WORKSPACE_CONTAINER_PATH:-/home/dev/workspace}"
-CONTAINER_NAME="${CONTAINER_NAME:-devcontainer}"
+# Explicit CONTAINER_NAME always wins. Otherwise, if --session was given,
+# derive a distinct default from the session name so two sessions running
+# in different directories don't collide on the same container name — the
+# script force-removes any existing container under $CONTAINER_NAME before
+# starting a new one (see below), which would otherwise silently kill an
+# unrelated, still-running session sharing the plain default name.
+if [ -z "${CONTAINER_NAME:-}" ]; then
+  if [ -n "$SESSION_NAME" ]; then
+    CONTAINER_NAME="devcontainer-${SESSION_NAME}"
+  else
+    CONTAINER_NAME="devcontainer"
+  fi
+fi
 CLAUDE_SESSION_PATH="/home/claude/.claude/projects"
 
 MANIFEST=$(docker run --rm --entrypoint cat "$IMAGE" /etc/wrapped-tools.json)

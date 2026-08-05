@@ -72,7 +72,7 @@ workspace will be whatever directory you were standing in.
 Relevant environment variables for `run-container.sh`:
 - `WORKSPACE_HOST_PATH` (default: your current directory when you invoke it) — the host directory bind-mounted as your project workspace. Set this explicitly to override the current-directory default.
 - `WORKSPACE_CONTAINER_PATH` (default `/home/dev/workspace`) — where it lands inside the container.
-- `CONTAINER_NAME` (default `devcontainer`) — re-running `run-container.sh` with the same name replaces the existing container. If you want multiple sandboxed containers for different projects running at once, give each a distinct `CONTAINER_NAME`.
+- `CONTAINER_NAME` (default `devcontainer`, or `devcontainer-<session>` if `--session <name>` was given and `CONTAINER_NAME` wasn't set explicitly) — re-running `run-container.sh` with the same name replaces the existing container. Set this explicitly if you want more than one sandboxed container running at once *without* using distinct `--session` names — with `--session`, distinct names are already derived for you, so different sessions no longer kill each other's containers.
 - `IMAGE_NAME` / `IMAGE_TAG` (default `devcontainer-base` / `latest`) — which image to run.
 
 ### Persistent Claude Code login and settings
