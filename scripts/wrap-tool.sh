@@ -31,7 +31,15 @@ print(max(uids) + 1 if uids else $UID_BASE)
 
 useradd --system --uid "$NEXT_UID" --no-create-home --shell /usr/sbin/nologin "$TOOL"
 mkdir -p "$CREDENTIAL_PATH"
-chown -R "$TOOL:$TOOL" "$CREDENTIAL_PATH"
+# --no-create-home means /home/$TOOL only exists at all because mkdir -p
+# above creates it (and any intermediate dirs, e.g. .config) as a side
+# effect of creating CREDENTIAL_PATH — as root, since this runs at image
+# build time. Chowning just CREDENTIAL_PATH itself leaves those parent
+# directories root-owned, which blocks the tool from writing anything
+# else under its own home (e.g. gh's own cache dir) at runtime. Chown the
+# whole home directory; keep the credential path itself specifically
+# locked down below.
+chown -R "$TOOL:$TOOL" "/home/$TOOL"
 chmod 0700 "$CREDENTIAL_PATH"
 
 cat > "$GUARDS_DIR/${TOOL}_config.py" <<EOF
