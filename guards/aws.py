@@ -12,6 +12,8 @@ def decide(argv: list[str]) -> bool:
             return True
         case ["iam", "get-role", *_]:
             return True
+        case ["api-gateway", action, *_] if action.startswith("get-"):
+            return True
         case ["iam", action, *_] if action.startswith("list-"):
             return True
         case _:
@@ -20,4 +22,5 @@ def decide(argv: list[str]) -> bool:
 
 if __name__ == "__main__":
     from aws_config import TOOL_NAME, REAL_EXECUTABLE, LOG_PATH
+
     run(decide, REAL_EXECUTABLE, LOG_PATH, TOOL_NAME)

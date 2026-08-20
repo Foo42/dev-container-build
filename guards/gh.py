@@ -29,16 +29,22 @@ def decide(argv: list[str]) -> bool:
             return True
         case ["issue", "view", *_] | ["issue", "list", *_]:
             return True
+        case ["run", "list", *_] | ["run", "view", *_]:
+            return True
         case ["repo", "view", *_]:
             return True
         case ["api", *rest]:
             match parse_args(rest):
-                case ({"-R": repo_name}, [resource]) if repo_name.startswith(
+                case ({"R": repo_name}, [resource]) if repo_name.startswith(
                     "HomelyEnergy/"
                 ):
                     match resource.split("/"):
                         case ["actions", "jobs", _, "logs"]:
                             return True
+                        case _:
+                            return False
+                case _:
+                    return False
         case _:
             return False  # deny by default — widen deliberately, case by case
 
