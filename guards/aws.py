@@ -12,6 +12,8 @@ def decide(argv: list[str]) -> bool:
             return True
         case ["iam", "get-role", *_]:
             return True
+        case ["codeartifact", "login", *_]:
+            return True
         case ["api-gateway", action, *_] if action.startswith("get-"):
             return True
         case ["iam", action, *_] if action.startswith("list-"):
